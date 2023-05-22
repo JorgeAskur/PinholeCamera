@@ -1,0 +1,7 @@
+<gazebo>
+<plugin name="gazebo_ros_vacuum_gripper" filename="libgazebo_ros_vacuum_gripper.so">
+      <robotNamespace>/vacuum_gripper</robotNamespace>
+      <bodyName>base</bodyName>
+      <topicName>grasping</topicName>
+  </plugin>
+</gazebo>
