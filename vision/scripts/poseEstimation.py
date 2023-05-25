@@ -15,6 +15,7 @@ from image_geometry import PinholeCameraModel, StereoCameraModel
 from sensor_msgs.msg import CameraInfo, Image
 from std_msgs.msg import ColorRGBA
 from cv_bridge import CvBridge
+import statistics
 import math
 
 #Modelo de la camara frontal
@@ -26,6 +27,10 @@ setG = False
 setR = False
 setL = False
 obj_id = 0
+
+movingModeX = []
+movingModeY = []
+movingModeZ = []
 
 def infoCamRightCB(msg):
     global stereo, setR
@@ -68,7 +73,7 @@ def pixelto3D(u, v, d):
 
 
 def detected_objects_callback(msg):
-    global currentPose, obj_id
+    global obj_id, movingModeX, movingModeY, movingModeZ
     objects = poseList()
     pub = rospy.Publisher("/uuv_perception/objects", poseList, queue_size=10)
     pointPub = rospy.Publisher("objectDetected", Marker, queue_size=10)
@@ -86,7 +91,6 @@ def detected_objects_callback(msg):
     
     colorList = []
     pointList = []
-    movingAverage = [[]]
 
     for object in msg.objects:
         item = poses()
@@ -111,13 +115,22 @@ def detected_objects_callback(msg):
 
         objects.targets.append(item)
         objects.len += 1
+        
+    for item in pointList:
+        movingModeX.append(round(item.x,3))
+        movingModeY.append(round(item.y,3))
+        movingModeZ.append(round(item.z,3))
 
-    # movingAverage.append(pointList)
-
-    # if len(movingAverage) > 5:
-    #     movingAverage.pop(0)
-    
-    # for pList in movingAverage:
+    if len(movingModeX) > 5:
+        movingModeX.pop(0)
+    if len(movingModeY) > 5:
+        movingModeY.pop(0)
+    if len(movingModeZ) > 5:
+        movingModeZ.pop(0)
+        
+    pointList[0].x = statistics.mode(movingModeX)
+    pointList[0].y = statistics.mode(movingModeY)
+    pointList[0].z = statistics.mode(movingModeZ)
         
     msgMarker.header.stamp = rospy.get_rostime()
     msgMarker.header.frame_id = "zed2i_base_link"
@@ -156,7 +169,6 @@ rospy.Subscriber('/zed2i/zed_node/right_raw/camera_info', CameraInfo, infoCamRig
 rospy.Subscriber('/zed2i/zed_node/left_raw/camera_info', CameraInfo, infoCamLeftCB, queue_size=10)
 rospy.Subscriber('/zed2i/zed_node/rgb/camera_info', CameraInfo, infoCamCB)
 rospy.Subscriber("/zed2i/zed_node/rgb/image_rect_color", Image, imageCB)
-
 
 if __name__ == "__main__":
     try:
