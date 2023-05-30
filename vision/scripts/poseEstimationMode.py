@@ -13,11 +13,9 @@ from vision.msg import obj_detected_list, poses, poseList
 import actionlib
 from image_geometry import PinholeCameraModel, StereoCameraModel
 from sensor_msgs.msg import CameraInfo, Image
-from stereo_msgs.msg import DisparityImage
-from std_msgs.msg import ColorRGBA, Float32
+from std_msgs.msg import ColorRGBA
 from cv_bridge import CvBridge
 import math
-import numpy as np
 import statistics
 
 #Modelo de la camara frontal
@@ -25,12 +23,9 @@ camera = PinholeCameraModel()
 
 stereo = StereoCameraModel()
 
-modelType = 'stereo'
-
 setG = False
 setR = False
 setL = False
-leftCamInfo = None
 obj_id = 0
 
 movingModeX = []
@@ -38,17 +33,23 @@ movingModeY = []
 movingModeZ = []
 
 def infoCamRightCB(msg):
-    global stereo, setR, setL, leftCamInfo
-    if not setR and setL:
-        stereo.fromCameraInfo(leftCamInfo, msg)
+    global stereo, setR
+    if not setR:
+        stereo.right.fromCameraInfo(msg)
         setR = True
 
 def infoCamLeftCB(msg):
-    global stereo, setL, leftCamInfo
+    global stereo, setL
     if not setL:
         stereo.left.fromCameraInfo(msg)
-        leftCamInfo = msg
         setL = True
+
+# #Callback que nos da la posicion actual del uuv
+# def ins_pose_callback(pose):
+#     global currentPose
+#     currentPose.x = pose.position.x
+#     currentPose.y = pose.position.y
+#     currentPose.z = pose.position.z
 
 def infoCamCB(msg):
     global camera, setG
@@ -60,36 +61,26 @@ def imageCB(msg):
     global imagen
     imagen = CvBridge().imgmsg_to_cv2(msg,"bgr8")
     
-def dispCB(msg):
-    global dispImg
-    dispImg = CvBridge().imgmsg_to_cv2(msg.image, msg.image.encoding)
-
-    
 def pixelto3D(u, v, d):
-    global dispImg, modelType
-    if modelType == 'stereo':
-        disp = dispImg[int(v), int(u)] * -1
-        #print(stereo.getZ(disp))
-        (y,z,x) = stereo.projectPixelTo3d((u,v),disp)
-    else:
-        #Obtener el rayo 3D de la camara al pixel indicado
-        ray = camera.projectPixelTo3dRay((u,v))
+    #Obtener el rayo 3D de la camara al pixel indicado
+    ray = camera.projectPixelTo3dRay((u,v))
 
-        #Multiplicar por la distancia para obtener la coordenada 
-        #(se cambia el orden de las x, y y z debido a que hay una rotacion en el frame de referencia de la imagen)
-        (y, z, x) = [el * (d) for el in ray]
+    #Multiplicar por la distancia para obtener la coordenada 
+    #(se cambia el orden de las x, y y z debido a que hay una rotacion en el frame de referencia de la imagen)
+    (y, z, x) = [el * (d) for el in ray]
+    
     return (x, y, z)
 
 
 def detected_objects_callback(msg):
     global currentPose, obj_id, setG, movingModeX, movingModeY, movingModeZ
-    if setL and setR or setG:
+    if setG:
         objects = poseList()
         pub = rospy.Publisher("/uuv_perception/objects", poseList, queue_size=10)
         pointPub = rospy.Publisher("objectDetected", Marker, queue_size=10)
         #Regresar lista con coordenadas de cada uno
         obj_id = 0
-        class_name = "Gun"
+        class_name = "person"
         msgMarker = Marker()
 
         color = ColorRGBA()
@@ -178,22 +169,18 @@ def detected_objects_callback(msg):
             print(pointList)
 
         pub.publish(objects)
-
-rospy.init_node("pose_estimation", anonymous=False)
+    
 #Object detector
 rospy.Subscriber('/yolov7/objects_detected', obj_detected_list, detected_objects_callback, queue_size=10)
+rospy.Subscriber('/zed2i/zed_node/right_raw/camera_info', CameraInfo, infoCamRightCB, queue_size=10)
+rospy.Subscriber('/zed2i/zed_node/left_raw/camera_info', CameraInfo, infoCamLeftCB, queue_size=10)
+rospy.Subscriber('/zed2i/zed_node/rgb/camera_info', CameraInfo, infoCamCB)
+rospy.Subscriber("/zed2i/zed_node/rgb/image_rect_color", Image, imageCB)
 
-if modelType == 'stereo':
-    rospy.Subscriber('/zed2i/zed_node/disparity/disparity_image', DisparityImage, dispCB)
-    rospy.Subscriber('/zed2i/zed_node/right_raw/camera_info', CameraInfo, infoCamRightCB, queue_size=10)
-    rospy.Subscriber('/zed2i/zed_node/left_raw/camera_info', CameraInfo, infoCamLeftCB, queue_size=10)
-    print(modelType)
-else:
-    rospy.Subscriber('/zed2i/zed_node/rgb/camera_info', CameraInfo, infoCamCB)
-    rospy.Subscriber("/zed2i/zed_node/rgb/image_rect_color", Image, imageCB)
-    print('a')
+
 if __name__ == "__main__":
     try:
+        rospy.init_node("pose_estimation", anonymous=False)
         start_time = rospy.get_time()
         rospy.spin()
 
