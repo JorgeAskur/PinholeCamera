@@ -80,7 +80,7 @@ def detected_objects_callback(msg):
         pointPub = rospy.Publisher("objectDetected", Marker, queue_size=10)
         #Regresar lista con coordenadas de cada uno
         obj_id = 0
-        class_name = "person"
+        class_name = "gun"
         msgMarker = Marker()
 
         color = ColorRGBA()
