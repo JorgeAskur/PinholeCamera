@@ -1,0 +1,13 @@
+train: SubData/train/images
+val: SubData/valid/images
+test: SubData/test/images
+
+nc: 9
+names: ['Axe', 'Badge', 'Gangster', 'Gun', 'Money', 'Police', 'bin1', 'bin2', 'octagon']
+
+roboflow:
+  workspace: test-i18uz
+  project: subdata
+  version: 3
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/test-i18uz/subdata/dataset/3
