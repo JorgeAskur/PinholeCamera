@@ -1,6 +1,0 @@
-<launch>
-
-    <node name="webcam" pkg="vision" type="image_publisher.py" output="screen" respawn="true"/>
-    <!-- <node name="handtracker" pkg="vision" type="handTracker.py" output="screen" respawn="true"/> -->
-  
-</launch>
