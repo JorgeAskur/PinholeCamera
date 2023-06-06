@@ -283,3 +283,4 @@ if __name__ == "__main__":
         queue_size=queue_size,
         class_labels=classes
     )
+    rospy.spin()
