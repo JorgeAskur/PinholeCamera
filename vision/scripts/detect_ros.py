@@ -18,6 +18,8 @@ from vision_msgs.msg import Detection2DArray, Detection2D, BoundingBox2D
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from vision.msg import obj_detected, obj_detected_list
+import math
+import matplotlib.path as mplPath
 
 
 def parse_classes_file(path):
@@ -170,32 +172,42 @@ class Yolov7Publisher:
 
         obj_list.len = 0
         #For each item detected
+        self.center_point = {}
+        self.id_count = 1
+        self.objects_id = []
+
         for element in detection_msg.detections:
             obj = obj_detected()
             i = 0
             largestScore = element.results[0].score
             largestIndex = 0
-
-            for hypothesis in element.results:
-                if hypothesis.score > largestScore:
-                    largestIndex = i
-                i += 1
-
-            obj.x = int(element.bbox.center.x - (element.bbox.size_x/2))
-            obj.y = int(element.bbox.center.y - (element.bbox.size_y/2))
-            obj.w = element.bbox.size_x
-            obj.h = element.bbox.size_y
             obj.clase = self.class_labels[element.results[largestIndex].id]
-            obj.X = element.bbox.center.x  
-            obj.Y = element.bbox.center.y
-            obj.Depth = float(self.depthImg[obj.Y, obj.X])
+            if obj.clase == 'person':
+                for hypothesis in element.results:
+                    if hypothesis.score > largestScore:
+                        largestIndex = i
+                    i += 1
 
-            obj_list.objects.append(obj) 
-            obj_list.len += 1
+                obj.x = int(element.bbox.center.x - (element.bbox.size_x/2))
+                obj.y = int(element.bbox.center.y - (element.bbox.size_y/2))
+                obj.w = element.bbox.size_x
+                obj.h = element.bbox.size_y
+                obj.X = element.bbox.center.x  
+                obj.Y = element.bbox.center.y
+                self.object_det = False
+                self.objects_id = self.objects_id
 
-        self.objects_publisher.publish(obj_list)
+                obj.id = 0
+                obj.Depth = float(self.depthImg[obj.Y, obj.X])
 
-        self.detection_publisher.publish(detection_msg)
+                obj_list.objects.append(obj) 
+                obj_list.len += 1
+
+
+
+            self.objects_publisher.publish(obj_list)
+
+            self.detection_publisher.publish(detection_msg)
 
         # visualizing if required
         if self.visualization_publisher:
@@ -252,5 +264,4 @@ if __name__ == "__main__":
         queue_size=queue_size,
         class_labels=classes
     )
-
     rospy.spin()

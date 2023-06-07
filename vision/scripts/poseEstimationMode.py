@@ -28,10 +28,6 @@ setR = False
 setL = False
 obj_id = 0
 
-movingModeX = []
-movingModeY = []
-movingModeZ = []
-
 def infoCamRightCB(msg):
     global stereo, setR
     if not setR:
@@ -43,13 +39,6 @@ def infoCamLeftCB(msg):
     if not setL:
         stereo.left.fromCameraInfo(msg)
         setL = True
-
-# #Callback que nos da la posicion actual del uuv
-# def ins_pose_callback(pose):
-#     global currentPose
-#     currentPose.x = pose.position.x
-#     currentPose.y = pose.position.y
-#     currentPose.z = pose.position.z
 
 def infoCamCB(msg):
     global camera, setG
@@ -80,17 +69,7 @@ def detected_objects_callback(msg):
         pointPub = rospy.Publisher("objectDetected", Marker, queue_size=10)
         #Regresar lista con coordenadas de cada uno
         obj_id = 0
-        class_name = "gun"
         msgMarker = Marker()
-
-        color = ColorRGBA()
-        
-        color.r = 0
-        color.g = 0
-        color.b = 1
-        color.a = 1
-        
-        colorList = []
         pointList = []
 
         for object in msg.objects:
@@ -102,72 +81,49 @@ def detected_objects_callback(msg):
             item.location.y = y 
             item.location.z = z 
             item.name = object.clase
+            p = Point()
 
-            if object.clase == class_name:
-                p = Point()
-
-                p.x = x
-                p.y = y
-                p.z = z
-                
-                if not math.isnan(p.x) and not str(p.x) == "-inf":
-                    pointList.append(p)
-                    colorList.append(color)      
+            p.x = x * -1
+            p.y = y
+            p.z = z 
+            
+            if not math.isnan(p.x) and not str(p.x) == "-inf":
+                pointList.append(p)
 
             objects.targets.append(item)
             objects.len += 1
 
-        for item in pointList:
-            movingModeX.append(round(item.x,2))
-            movingModeY.append(round(item.y,2))
-            movingModeZ.append(round(item.z,2))
-
-        if len(movingModeX) > 5:
-            movingModeX.pop(0)
-        if len(movingModeY) > 5:
-            movingModeY.pop(0)
-        if len(movingModeZ) > 5:
-            movingModeZ.pop(0)
-            
-        if len(pointList) > 0:
-            if not math.isnan(statistics.mode(movingModeX)) and not str(statistics.mode(movingModeX)) == "-inf":    
-                pointList[0].x = statistics.mode(movingModeX)
-                pointList[0].y = statistics.mode(movingModeY)
-                pointList[0].z = statistics.mode(movingModeZ)
-        else:
-            
-            temp = Point()
-            temp.x = statistics.mode(movingModeX)
-            temp.y = statistics.mode(movingModeY)
-            temp.z = statistics.mode(movingModeZ)
-            if not math.isnan(temp.x) and not str(temp.x) == "-inf":
-                pointList = [temp]
-
-        msgMarker.header.stamp = rospy.get_rostime()
         msgMarker.header.frame_id = "zed2i_base_link"
 
-        msgMarker.ns = class_name
         msgMarker.id = 0
         
-        msgMarker.type = 7
+        msgMarker.type = 10
         msgMarker.action = 0
-        msgMarker.pose.orientation.w = 1.0
-        msgMarker.scale.x = 0.1
-        msgMarker.scale.y = 0.1
-        msgMarker.scale.z = 0.1
 
-        msgMarker.color.r = 0.0
-        msgMarker.color.g = 1.0
-        msgMarker.color.b = 0.0
+        msgMarker.pose.orientation.x = 0.7071068
+        msgMarker.pose.orientation.y = 0.0
+        msgMarker.pose.orientation.z = 0.0
+        msgMarker.pose.orientation.w = 0.7071068
+        
+        msgMarker.scale.x = 0.002
+        msgMarker.scale.y = 0.002
+        msgMarker.scale.z = 0.002
+
+        msgMarker.color.r = 0.839
+        msgMarker.color.g = 0.764
+        msgMarker.color.b = 0.623
         msgMarker.color.a = 1.0
 
-        msgMarker.points = pointList
-        msgMarker.colors = colorList
+        msgMarker.mesh_use_embedded_materials = True
+        msgMarker.mesh_resource = "package://vision/Droid_Assembly_Final.stl"
 
-        if len(pointList) > 0:
+        msgMarker.lifetime = rospy.Duration.from_sec(5)
+        for i, point in enumerate(pointList):
+            msgMarker.header.stamp = rospy.get_rostime()
+            msgMarker.ns = objects.targets[i].name
+            msgMarker.id = i
+            msgMarker.pose.position = point
             pointPub.publish(msgMarker)
-            print(pointList)
-
         pub.publish(objects)
     
 #Object detector
